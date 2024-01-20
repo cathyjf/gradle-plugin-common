@@ -22,7 +22,11 @@ package org.zaproxy.gradle.common;
 import com.diffplug.gradle.spotless.SpotlessExtension;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.function.Supplier;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.ProjectConfigurationException;
@@ -33,8 +37,23 @@ import org.zaproxy.gradle.common.spotless.FormatPropertiesStep;
 /** A plugin for common ZAP build-related configs and tasks. */
 public class CommonPlugin implements Plugin<Project> {
 
-    private static final List<String> JAVA_COMPILER_ARGS =
-            List.of("-Xlint:all", "-Werror", "-parameters");
+    private static final List<String> JAVA_COMPILER_ARGS = ((Supplier<List<String>>)() -> {
+        final var args = new ArrayList<String>(Arrays.asList(new String[]{
+                "-Xlint:all", "-Werror", "-parameters" }));
+        if (Runtime.version().feature() >= 21) {
+            // Starting in JDK 21, `-Xlint:all` enables the new `this-escape` warning.
+            // This new warning is not particularly useful for zaproxy, but if we don't
+            // suppress it, zaproxy won't compile under JDK 21 because of the `-Werror`
+            // flag supplied above.
+            //
+            // Unfortunately, passing this new javac flag (`-Xlint:-this-escape`) when
+            // compiling with JDK < 21 results in an error, because the flag is unknown.
+            // To resolve this, we can add this new flag to the argument list only if
+            // we are using JDK >= 21.
+            args.add("-Xlint:-this-escape");
+        }
+        return Collections.unmodifiableList(args);
+    }).get();
 
     private static final String GJF_VERSION = "1.17.0";
 

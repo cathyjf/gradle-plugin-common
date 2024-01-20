@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Test;
 class JavaCompileFunctionalTest extends JavaFunctionalTest {
 
     private static final String COMPILE_JAVA = ":compileJava";
+    private static final String TEST_CLASS_NAME = "Example";
 
     @BeforeEach
     void setUp() throws Exception {
@@ -42,6 +43,17 @@ class JavaCompileFunctionalTest extends JavaFunctionalTest {
     void shouldCompileWithUnicodeChars() throws Exception {
         // Given
         javaClassWith("        String str = \"❌🎉️\"; System.out.println(str);\n");
+        // When
+        BuildResult result = build(COMPILE_JAVA);
+        // Then
+        assertTaskSuccess(result, COMPILE_JAVA);
+    }
+
+    @Test
+    void shouldCompileEvenThoughItRaisesThisEscapeWarning() throws Exception {
+        // Given
+        javaClassWithFreeText(
+                "public " + TEST_CLASS_NAME + "() { System.out.println(this.hashCode()); }");
         // When
         BuildResult result = build(COMPILE_JAVA);
         // Then
@@ -63,17 +75,24 @@ class JavaCompileFunctionalTest extends JavaFunctionalTest {
                 result.getOutput(), containsString("error: warnings found and -Werror specified"));
     }
 
-    private Path javaClassWith(String body) throws Exception {
+    private Path javaClassWithFreeText(String freeText) throws Exception {
         var javaFile = projectDir.resolve("src/main/java/org/zaproxy/example/Example.java");
         createFile(
                 "package org.zaproxy.example;\n"
                         + "\n"
-                        + "public class Example {\n"
-                        + "    public static void main(String[] args) {\n"
-                        + body
-                        + "    }\n"
+                        + "public class " + TEST_CLASS_NAME + " {\n"
+                        + freeText
+                        + "\n"
                         + "}",
                 javaFile);
         return javaFile;
+    }
+
+    private Path javaClassWith(String body) throws Exception {
+        return javaClassWithFreeText(
+                "    public static void main(String[] args) {\n"
+                        + body
+                        + "    }"
+        );
     }
 }
